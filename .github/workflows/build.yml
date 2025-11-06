@@ -38,11 +38,11 @@ jobs:
           cp -v out/n225/latest_metrics.csv  public/
           cp -v out/n225/latest_signals.csv  public/
 
-      # ←←← ここで checksummed version.json を作る（Upload より前！）
+      # ← ここで checksummed version.json を作る（Upload より前！）
       - name: Write checksummed version.json
         run: |
           python - <<'PY'
-          import hashlib, json, os, time
+          import hashlib, json, os, time, subprocess
           base='public'
           def sha(p):
               h=hashlib.sha256()
@@ -55,13 +55,15 @@ jobs:
               key=f.replace('latest_','').replace('.','_')
               out[f'{key}_sha256']=he
               out[f'{key}_size']=sz
-          out['version']=time.strftime('%Y%m%d%H%M%S', time.localtime())
+          # run番号 or 時刻で確実に変わる version
+          run_num = os.getenv('GITHUB_RUN_NUMBER')
+          out['version'] = run_num if run_num else time.strftime('%Y%m%d%H%M%S', time.localtime())
           out['updated_at']=time.strftime('%Y-%m-%dT%H:%M:%S+09:00', time.localtime())
           with open(os.path.join(base,'version.json'),'w',encoding='utf-8') as g:
               json.dump(out,g,ensure_ascii=False)
+          print("=== version.json ===")
+          print(open(os.path.join(base,'version.json'),'r',encoding='utf-8').read())
           PY
-          echo "=== version.json ==="
-          cat public/version.json
 
       - name: Upload artifact (public/*)
         uses: actions/upload-pages-artifact@v3
