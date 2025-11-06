@@ -1,5 +1,6 @@
 ﻿name: build-and-publish-n225-pack
 on:
+
   schedule:
     - cron: "10 7 * * *"   # 07:10 UTC = 16:10 JST
   workflow_dispatch:
@@ -28,7 +29,17 @@ jobs:
         run: python n225_batch.py || true
 
       # ★ここが保険：出力が空なら代表銘柄でミニパックを生成
-      - name: Sanity check & fallback
+            - name: Setup Python (mk_components deps)
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas lxml beautifulsoup4 requests
+        shell: bash
+
+      - name: Build Nikkei 225 components
+        run: |
+          python tools/mk_components.py
+        shell: bash
+- name: Sanity check & fallback
         run: |
           python - <<'PY'
           import os, sys, json, time, csv
@@ -143,4 +154,10 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+- name: Setup Python
+  run: |
+    python -m pip install --upgrade pip
+    pip install pandas yfinance ta pandas_datareader
+
+
 
