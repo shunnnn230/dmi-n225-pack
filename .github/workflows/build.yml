@@ -1,15 +1,16 @@
 ﻿name: build-and-publish-n225-pack
 on:
   schedule:
-    - cron: '10 7 * * *'   # 07:10 UTC = 16:10 JST
+    - cron: "10 7 * * *"   # 07:10 UTC = 16:10 JST
   workflow_dispatch:
 permissions:
   contents: read
   pages: write
   id-token: write
 concurrency:
-  group: 'pages'
+  group: "pages"
   cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,19 +20,25 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
+
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
       - name: Run batch
         run: python n225_batch.py
+
       - name: Stage public files
         run: |
+          rm -rf public
           mkdir -p public
           cp -v out/n225/latest_pack.json    public/
           cp -v out/n225/latest_metrics.csv  public/
           cp -v out/n225/latest_signals.csv  public/
+
+      # ←←← ここで checksummed version.json を作る（Upload より前！）
       - name: Write checksummed version.json
         run: |
           python - <<'PY'
@@ -53,10 +60,14 @@ jobs:
           with open(os.path.join(base,'version.json'),'w',encoding='utf-8') as g:
               json.dump(out,g,ensure_ascii=False)
           PY
-      - name: Upload artifact
+          echo "=== version.json ==="
+          cat public/version.json
+
+      - name: Upload artifact (public/*)
         uses: actions/upload-pages-artifact@v3
         with:
           path: public
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
