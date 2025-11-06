@@ -38,6 +38,27 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: public
+      - name: Write checksummed version.json
+        run: |
+          python - <<'PY'
+          import hashlib, json, os, time
+          base='public'
+          def sha(p):
+              h=hashlib.sha256()
+              with open(p,'rb') as f:
+                  for b in iter(lambda: f.read(262144), b''): h.update(b)
+              return h.hexdigest(), os.path.getsize(p)
+          files = ['latest_pack.json','latest_metrics.csv','latest_signals.csv']
+          out = {}
+          for f in files:
+              he, sz = sha(os.path.join(base,f))
+              key = f.replace('latest_','').replace('.','_')
+              out[key+'_sha256'] = he
+              out[key+'_size']   = sz
+          out['updated_at'] = time.strftime('%Y-%m-%dT%H:%M:%S+09:00', time.localtime())
+          with open(os.path.join(base,'version.json'),'w',encoding='utf-8') as g:
+              json.dump(out, g, ensure_ascii=False)
+          PY
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -47,3 +68,4 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
