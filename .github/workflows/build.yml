@@ -1,62 +1,57 @@
 ﻿name: build-and-publish-n225-pack
 on:
   schedule:
-    - cron: "10 7 * * *"   # 07:10 UTC = 16:10 JST
+    - cron: '10 7 * * *'   # 07:10 UTC = 16:10 JST
   workflow_dispatch:
 permissions:
   contents: read
   pages: write
   id-token: write
 concurrency:
-  group: "pages"
+  group: 'pages'
   cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      CI: "1"
-      TZ: "Asia/Tokyo"
+      TZ: Asia/Tokyo
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Run batch
         run: python n225_batch.py
-      - name: Make public artifacts
+      - name: Stage public files
         run: |
           mkdir -p public
           cp -v out/n225/latest_pack.json    public/
-          cp -v out/n225/version.json        public/ || true
           cp -v out/n225/latest_metrics.csv  public/
           cp -v out/n225/latest_signals.csv  public/
-      # ← 重要：ここで checksummed version.json を上書き生成（Upload より前）
       - name: Write checksummed version.json
         run: |
           python - <<'PY'
           import hashlib, json, os, time
-          base = "public"
+          base='public'
           def sha(p):
-              h = hashlib.sha256()
-              with open(p, "rb") as f:
-                  for b in iter(lambda: f.read(262144), b""): h.update(b)
+              h=hashlib.sha256()
+              with open(p,'rb') as f:
+                  for b in iter(lambda: f.read(262144), b''): h.update(b)
               return h.hexdigest(), os.path.getsize(p)
-
-          files = ["latest_pack.json","latest_metrics.csv","latest_signals.csv"]
-          out = {}
-          for f in files:
-              he, sz = sha(os.path.join(base, f))
-              key = f.replace("latest_","").replace(".","_")
-              out[key+"_sha256"] = he
-              out[key+"_size"]   = sz
-          out["version"]    = time.strftime("%Y%m%d%H%M%S", time.localtime())
-          out["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S+09:00", time.localtime())
-          with open(os.path.join(base, "version.json"), "w", encoding="utf-8") as g:
-              json.dump(out, g, ensure_ascii=False)
+          out={}
+          for f in ('latest_pack.json','latest_metrics.csv','latest_signals.csv'):
+              he,sz=sha(os.path.join(base,f))
+              key=f.replace('latest_','').replace('.','_')
+              out[f'{key}_sha256']=he
+              out[f'{key}_size']=sz
+          out['version']=time.strftime('%Y%m%d%H%M%S', time.localtime())
+          out['updated_at']=time.strftime('%Y-%m-%dT%H:%M:%S+09:00', time.localtime())
+          with open(os.path.join(base,'version.json'),'w',encoding='utf-8') as g:
+              json.dump(out,g,ensure_ascii=False)
           PY
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
